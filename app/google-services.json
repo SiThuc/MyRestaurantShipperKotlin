@@ -1,0 +1,114 @@
+{
+  "project_info": {
+    "project_number": "230574078606",
+    "firebase_url": "https://myrestaurant-v2-kotlin-default-rtdb.firebaseio.com",
+    "project_id": "myrestaurant-v2-kotlin",
+    "storage_bucket": "myrestaurant-v2-kotlin.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:230574078606:android:d94e584da8fb43bf9727df",
+        "android_client_info": {
+          "package_name": "com.example.myrestaurant_v2_kotlin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "230574078606-sg79tnelfhotumlucbp64kneqlc0eru4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.myrestaurant_v2_kotlin",
+            "certificate_hash": "c79af8afef08b3f090113a9faafaaa6947e35cf6"
+          }
+        },
+        {
+          "client_id": "230574078606-neeo2hs3b45st9r05c78iq5257st0j0q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQ10wJokqdKTD8RSzML9gmX7rNplfrJCs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "230574078606-neeo2hs3b45st9r05c78iq5257st0j0q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:230574078606:android:4575fc52c72af57a9727df",
+        "android_client_info": {
+          "package_name": "com.example.myrestaurantshipperv2kotlin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "230574078606-neeo2hs3b45st9r05c78iq5257st0j0q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQ10wJokqdKTD8RSzML9gmX7rNplfrJCs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "230574078606-neeo2hs3b45st9r05c78iq5257st0j0q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:230574078606:android:f03cd08b64b92d129727df",
+        "android_client_info": {
+          "package_name": "com.example.myrestaurantv2kotlinserverapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "230574078606-j63cl0ed956hd1ul0lc8ufhd2htdbq8o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.myrestaurantv2kotlinserverapp",
+            "certificate_hash": "c79af8afef08b3f090113a9faafaaa6947e35cf6"
+          }
+        },
+        {
+          "client_id": "230574078606-neeo2hs3b45st9r05c78iq5257st0j0q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQ10wJokqdKTD8RSzML9gmX7rNplfrJCs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "230574078606-neeo2hs3b45st9r05c78iq5257st0j0q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
