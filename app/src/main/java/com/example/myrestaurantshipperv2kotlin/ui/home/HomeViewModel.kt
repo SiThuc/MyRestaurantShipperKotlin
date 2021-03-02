@@ -35,6 +35,7 @@ class HomeViewModel : ViewModel(), IShipperOrderCallbackListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 for (item in snapshot.children) {
                     val shipperOrder = item.getValue(ShipperOrderModel::class.java)
+                    shipperOrder!!.key = item.key
                     if (shipperOrder != null) {
                         tempList.add(shipperOrder)
                     }

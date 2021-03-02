@@ -19,6 +19,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.*
 import dmax.dialog.SpotsDialog
+import io.paperdb.Paper
 
 class MainActivity : AppCompatActivity() {
     private lateinit var firebaseAuth: FirebaseAuth
@@ -46,6 +47,11 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         init()
+
+        //Delete data
+        Paper.init(this)
+        Paper.book().delete(Common.TRIP_START)
+        Paper.book().delete(Common.SHIPPING_DATA)
     }
 
     private fun init() {

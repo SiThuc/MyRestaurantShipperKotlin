@@ -3,6 +3,7 @@ package com.example.myrestaurantshipperv2kotlin.model
 import com.example.myrestaurantshipperv2model.OrderModel
 
 class ShipperOrderModel() {
+    var key: String? = null
     val shipperPhone: String? = null
     var shipperName: String? = null
     val currentLat = 0.0
