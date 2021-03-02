@@ -1,6 +1,8 @@
 package com.example.myrestaurantshipperv2kotlin
 
+import android.content.Intent
 import android.os.Bundle
+import android.text.TextUtils
 import android.view.Menu
 import android.widget.Toast
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -16,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import com.example.myrestaurantshipperv2kotlin.common.Common
 import com.google.firebase.iid.FirebaseInstanceId
+import io.paperdb.Paper
 
 class HomeActivity : AppCompatActivity() {
 
@@ -28,6 +31,7 @@ class HomeActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
 
         updateToken()
+        checkStartTrip()
 
         val fab: FloatingActionButton = findViewById(R.id.fab)
         fab.setOnClickListener { view ->
@@ -46,6 +50,18 @@ class HomeActivity : AppCompatActivity() {
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        checkStartTrip()
+    }
+
+    private fun checkStartTrip() {
+        Paper.init(this)
+        val data = Paper.book().read<String>(Common.TRIP_START)
+        if(!TextUtils.isEmpty(data))
+            startActivity(Intent(this, ShippingActivity::class.java))
     }
 
     private fun updateToken() {

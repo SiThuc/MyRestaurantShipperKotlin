@@ -1,6 +1,7 @@
 package com.example.myrestaurantshipperv2kotlin
 
 import android.Manifest
+import android.animation.ValueAnimator
 import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.graphics.Bitmap
@@ -8,9 +9,11 @@ import android.graphics.Color
 import android.location.Location
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
 import android.os.Looper
 import android.text.TextUtils
 import android.util.Log
+import android.view.animation.LinearInterpolator
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -21,6 +24,9 @@ import com.example.myrestaurantshipperv2kotlin.common.LatLngInterpolator
 import com.example.myrestaurantshipperv2kotlin.common.MarkerAnimation
 import com.example.myrestaurantshipperv2kotlin.databinding.ActivityShippingBinding
 import com.example.myrestaurantshipperv2kotlin.model.ShipperOrderModel
+import com.example.myrestaurantshipperv2kotlin.remote.IGoogleApi
+import com.example.myrestaurantshipperv2kotlin.remote.RetrofitClient
+import com.google.android.gms.common.api.Status
 import com.google.android.gms.location.*
 
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -28,6 +34,11 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
+import com.google.android.libraries.places.api.Places
+import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.net.PlacesClient
+import com.google.android.libraries.places.widget.AutocompleteSupportFragment
+import com.google.android.libraries.places.widget.listener.PlaceSelectionListener
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.karumi.dexter.Dexter
@@ -37,7 +48,15 @@ import com.karumi.dexter.listener.PermissionGrantedResponse
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.single.PermissionListener
 import io.paperdb.Paper
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.schedulers.Schedulers
+import org.json.JSONObject
+import retrofit2.create
+import java.lang.Exception
 import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.collections.ArrayList
 
 class ShippingActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var binding: ActivityShippingBinding
@@ -53,10 +72,41 @@ class ShippingActivity : AppCompatActivity(), OnMapReadyCallback {
     var isInit = false
     var previousLocation: Location? = null
 
+    private var handler: Handler? = null
+    private var index: Int = -1
+    private var next: Int = 0
+    private var startPosition: LatLng? = LatLng(0.0, 0.0)
+    private var endPosition: LatLng? = LatLng(0.0, 0.0)
+    private var v: Float = 0f
+    private var lat: Double = -1.0
+    private var lng: Double = -1.0
+
+    private var blackPolyline: Polyline? = null
+    private var greyPolyline: Polyline? = null
+    private var polylineOptions: PolylineOptions? = null
+    private var blackPolylineOptions: PolylineOptions? = null
+
+    private var polylineList: List<LatLng> = ArrayList<LatLng>()
+    private var iGoogleApi: IGoogleApi? = null
+    private var compositeDisposable = CompositeDisposable()
+
+    private lateinit var places_fragment: AutocompleteSupportFragment
+    private lateinit var placesClient: PlacesClient
+    private val placesFields = Arrays.asList(Place.Field.ID,
+    Place.Field.NAME,
+    Place.Field.ADDRESS,
+    Place.Field.LAT_LNG)
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityShippingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        iGoogleApi = RetrofitClient.instance!!.create(IGoogleApi::class.java)
+
+        initPlaces()
+        setupPlaceAutoComplete()
 
         buildLocationRequest()
         buildLocationCallback()
@@ -64,81 +114,132 @@ class ShippingActivity : AppCompatActivity(), OnMapReadyCallback {
         setShipperOrderModel()
 
         Dexter.withContext(this).withPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
-                .withListener(object : PermissionListener {
-                    override fun onPermissionGranted(p0: PermissionGrantedResponse?) {
-                        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-                        val mapFragment = supportFragmentManager
-                                .findFragmentById(R.id.map) as SupportMapFragment
-                        mapFragment.getMapAsync(this@ShippingActivity)
+            .withListener(object : PermissionListener {
+                override fun onPermissionGranted(p0: PermissionGrantedResponse?) {
+                    // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+                    val mapFragment = supportFragmentManager
+                        .findFragmentById(R.id.map) as SupportMapFragment
+                    mapFragment.getMapAsync(this@ShippingActivity)
 
-                        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this@ShippingActivity)
-                        if (ActivityCompat.checkSelfPermission(
-                                        this@ShippingActivity,
-                                        Manifest.permission.ACCESS_FINE_LOCATION
-                                ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                                        this@ShippingActivity,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION
-                                ) != PackageManager.PERMISSION_GRANTED
-                        ) {
-                            // TODO: Consider calling
-                            //    ActivityCompat#requestPermissions
-                            // here to request the missing permissions, and then overriding
-                            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                            //                                          int[] grantResults)
-                            // to handle the case where the user grants the permission. See the documentation
-                            // for ActivityCompat#requestPermissions for more details.
-                            return
-                        }
-                        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback,
-                                Looper.myLooper())
-                    }
-
-                    override fun onPermissionDenied(p0: PermissionDeniedResponse?) {
-                        Toast.makeText(this@ShippingActivity, "You must allow this permission", Toast.LENGTH_SHORT).show()
-                    }
-
-                    override fun onPermissionRationaleShouldBeShown(
-                            p0: PermissionRequest?,
-                            p1: PermissionToken?
+                    fusedLocationProviderClient =
+                        LocationServices.getFusedLocationProviderClient(this@ShippingActivity)
+                    if (ActivityCompat.checkSelfPermission(
+                            this@ShippingActivity,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                        ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                            this@ShippingActivity,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        ) != PackageManager.PERMISSION_GRANTED
                     ) {
-                        TODO("Not yet implemented")
+                        // TODO: Consider calling
+                        //    ActivityCompat#requestPermissions
+                        // here to request the missing permissions, and then overriding
+                        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                        //                                          int[] grantResults)
+                        // to handle the case where the user grants the permission. See the documentation
+                        // for ActivityCompat#requestPermissions for more details.
+                        return
                     }
+                    fusedLocationProviderClient.requestLocationUpdates(
+                        locationRequest, locationCallback,
+                        Looper.myLooper()
+                    )
+                }
 
-                }).check()
+                override fun onPermissionDenied(p0: PermissionDeniedResponse?) {
+                    Toast.makeText(
+                        this@ShippingActivity,
+                        "You must allow this permission",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+
+                override fun onPermissionRationaleShouldBeShown(
+                    p0: PermissionRequest?,
+                    p1: PermissionToken?
+                ) {
+                    TODO("Not yet implemented")
+                }
+
+            }).check()
+        initViews()
+    }
+
+
+
+
+    private fun setupPlaceAutoComplete() {
+        places_fragment = supportFragmentManager.findFragmentById(R.id.places_autocomplete_fragment) as AutocompleteSupportFragment
+        places_fragment.setPlaceFields(placesFields)
+        places_fragment.setOnPlaceSelectedListener(object : PlaceSelectionListener {
+            override fun onPlaceSelected(p0: Place) {
+                Toast.makeText(this@ShippingActivity, StringBuilder(p0.name)
+                    .append("-")
+                    .append(p0.latLng).toString(), Toast.LENGTH_SHORT).show()
+            }
+
+            override fun onError(p0: Status) {
+                Toast.makeText(this@ShippingActivity, "" + p0.statusMessage, Toast.LENGTH_SHORT)
+                    .show()
+            }
+        })
+    }
+
+
+    private fun initPlaces() {
+        Places.initialize(this, getString(R.string.google_maps_key))
+        placesClient = Places.createClient(this)
+    }
+
+    private fun initViews() {
+        binding.btnStartTrip.setOnClickListener {
+            val data = Paper.book().read<String>(Common.SHIPPING_DATA)
+            Paper.book().write(Common.TRIP_START, data)
+            binding.btnStartTrip.isEnabled = false // Deactive after click
+        }
     }
 
     private fun setShipperOrderModel() {
         Paper.init(this)
-        val data = Paper.book().read<String>(Common.SHIPPING_DATA)
+        var data: String? = ""
+        if (TextUtils.isEmpty(Paper.book().read(Common.TRIP_START))) {
+            data = Paper.book().read<String>(Common.SHIPPING_DATA)
+            binding.btnStartTrip.isEnabled = true
+        } else {
+            data = Paper.book().read<String>(Common.TRIP_START)
+            binding.btnStartTrip.isEnabled = false
+        }
         if (!TextUtils.isEmpty(data)) {
             shipperOrderModel = Gson()
-                    .fromJson<ShipperOrderModel>(data, object : TypeToken<ShipperOrderModel>() {}.type)
+                .fromJson<ShipperOrderModel>(data, object : TypeToken<ShipperOrderModel>() {}.type)
             if (shipperOrderModel != null) {
                 Common.setSpanStringColor(
-                        "Name:",
-                        shipperOrderModel!!.orderModel!!.userName!!,
-                        binding.txtName,
-                        Color.parseColor("#333639")
+                    "Name:",
+                    shipperOrderModel!!.orderModel!!.userName!!,
+                    binding.txtName,
+                    Color.parseColor("#333639")
                 )
                 Common.setSpanStringColor(
-                        "Address:",
-                        shipperOrderModel!!.orderModel!!.shippingAddress!!,
-                        binding.txtAddress,
-                        Color.parseColor("#673ab7")
+                    "Address:",
+                    shipperOrderModel!!.orderModel!!.shippingAddress!!,
+                    binding.txtAddress,
+                    Color.parseColor("#673ab7")
                 )
                 Common.setSpanStringColor(
-                        "Name:",
-                        shipperOrderModel!!.orderModel!!.key!!,
-                        binding.txtOrderNumber,
-                        Color.parseColor("#795548")
+                    "Name:",
+                    shipperOrderModel!!.orderModel!!.key!!,
+                    binding.txtOrderNumber,
+                    Color.parseColor("#795548")
                 )
 
-                binding.txtDate.text = StringBuilder().append(SimpleDateFormat("dd-MM-yyy HH:mm:ss").format(
+                binding.txtDate.text = StringBuilder().append(
+                    SimpleDateFormat("dd-MM-yyy HH:mm:ss").format(
                         shipperOrderModel!!.orderModel!!.createdDate
-                ))
+                    )
+                )
 
                 Glide.with(this).load(shipperOrderModel!!.orderModel!!.cartItemList!![0].foodImage)
-                        .into(binding.imgFoodImage)
+                    .into(binding.imgFoodImage)
 
             }
         } else {
@@ -155,35 +256,158 @@ class ShippingActivity : AppCompatActivity(), OnMapReadyCallback {
                     val height = 80
                     val width = 80
                     val bitmapDrawable =
-                            ContextCompat.getDrawable(this@ShippingActivity, R.drawable.shipper)
+                        ContextCompat.getDrawable(this@ShippingActivity, R.drawable.shipper)
                     val b = bitmapDrawable!!.toBitmap()
                     val smallMarker = Bitmap.createScaledBitmap(b, width, height, false)
                     shipperMarker = mMap.addMarker(
-                            MarkerOptions()
-                                    .icon(BitmapDescriptorFactory.fromBitmap(smallMarker))
-                                    .position(locationShipper)
-                                    .title("You")
+                        MarkerOptions()
+                            .icon(BitmapDescriptorFactory.fromBitmap(smallMarker))
+                            .position(locationShipper)
+                            .title("You")
                     )
-                    mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(locationShipper, 15f))
+                    mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(locationShipper, 18f))
                 } else {
                     shipperMarker!!.position = locationShipper
                 }
 
-                if (isInit && previousLocation != null){
-                    val previousLocationLatLng = LatLng(previousLocation!!.latitude, previousLocation!!.longitude)
+                if (isInit && previousLocation != null) {
+                    /*val previousLocationLatLng = LatLng(previousLocation!!.latitude, previousLocation!!.longitude)
                     MarkerAnimation.animateMarkerToGB(shipperMarker!!, locationShipper, LatLngInterpolator.Spherical())
                     shipperMarker!!.rotation = Common.getBearing(previousLocationLatLng, locationShipper)
-                    mMap.animateCamera(CameraUpdateFactory.newLatLng(locationShipper))
+                    mMap.animateCamera(CameraUpdateFactory.newLatLng(locationShipper))*/
+
+                    val from = StringBuilder()
+                        .append(previousLocation!!.latitude)
+                        .append(",")
+                        .append(previousLocation!!.longitude)
+                    val to = StringBuilder()
+                        .append(locationShipper.latitude)
+                        .append(",")
+                        .append(locationShipper.longitude)
+
+                    moveMarkerAnimation(shipperMarker, from, to)
 
                     previousLocation = p0.lastLocation
                 }
-                if(!isInit){
+                if (!isInit) {
                     isInit = true
                     previousLocation = p0.lastLocation
                 }
 
             }
         }
+    }
+
+    private fun moveMarkerAnimation(
+        marker: Marker?,
+        from: java.lang.StringBuilder,
+        to: java.lang.StringBuilder
+    ) {
+        compositeDisposable.add(
+            iGoogleApi!!.getDirections(
+                "driving", "lesss-driving",
+                from.toString(),
+                to.toString(),
+                getString(R.string.google_api_key)
+            )!!
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe({ s ->
+                    Log.d("DEBUG", s.toString())
+                    try {
+                        val jsonObject = JSONObject(s)
+                        val jsonArray = jsonObject.getJSONArray("routes")
+                        for (i in 0 until jsonArray.length()) {
+                            val route = jsonArray.getJSONObject(i)
+                            val poly = route.getJSONObject("overview_polyline")
+                            val polyline = poly.getString("points")
+                            polylineList = Common.decodePoly(polyline)
+                        }
+
+                        polylineOptions = PolylineOptions()
+                        polylineOptions!!.color(Color.GRAY)
+                        polylineOptions!!.width(5.0f)
+                        polylineOptions!!.startCap(SquareCap())
+                        polylineOptions!!.endCap(SquareCap())
+                        polylineOptions!!.jointType(JointType.ROUND)
+                        polylineOptions!!.addAll(polylineList)
+                        greyPolyline = mMap.addPolyline(polylineOptions)
+
+                        blackPolylineOptions = PolylineOptions()
+                        blackPolylineOptions!!.color(Color.GRAY)
+                        blackPolylineOptions!!.width(5.0f)
+                        blackPolylineOptions!!.startCap(SquareCap())
+                        blackPolylineOptions!!.endCap(SquareCap())
+                        blackPolylineOptions!!.jointType(JointType.ROUND)
+                        blackPolylineOptions!!.addAll(polylineList)
+                        blackPolyline = mMap.addPolyline(blackPolylineOptions)
+
+                        //Animator
+                        val polylineAnimator = ValueAnimator.ofInt(0, 100)
+                        polylineAnimator.setDuration(2000)
+                        polylineAnimator.setInterpolator(LinearInterpolator())
+                        polylineAnimator.addUpdateListener { valueAnimator ->
+                            val points = greyPolyline!!.points
+                            val perventValue =
+                                Integer.parseInt(valueAnimator.animatedValue.toString())
+                            val size = points.size
+                            val newPoints = (size * (perventValue / 100.0f)).toInt()
+                            val p = points.subList(0, newPoints)
+                            blackPolyline!!.points = p
+                        }
+
+                        polylineAnimator.start()
+
+                        //Car Moving
+                        index = -1
+                        next = 1
+                        val r = object : Runnable {
+                            override fun run() {
+                                if (index < polylineList.size - 1) {
+                                    index++
+                                    next = index + 1
+                                    startPosition = polylineList[index]
+                                    endPosition = polylineList[next]
+                                }
+
+                                val valueAnimator = ValueAnimator.ofInt(0, 1)
+                                valueAnimator.duration = 1500
+                                valueAnimator.interpolator = LinearInterpolator()
+                                valueAnimator.addUpdateListener { valueAnimator ->
+                                    v = valueAnimator.animatedFraction
+                                    lat =
+                                        v * endPosition!!.latitude + (1 - v) * startPosition!!.latitude
+                                    lng =
+                                        v * endPosition!!.longitude + (1 - v) * startPosition!!.longitude
+
+                                    val newPos = LatLng(lat, lng)
+                                    marker!!.position = newPos
+                                    marker.setAnchor(0.5f, 0.5f)
+                                    marker.rotation = Common.getBearing(startPosition!!, newPos)
+
+                                    mMap.animateCamera(CameraUpdateFactory.newLatLng(marker.position))
+                                }
+
+                                valueAnimator.start()
+                                if (index < polylineList.size - 2)
+                                    handler!!.postDelayed(this, 1500)
+                            }
+
+                        }
+
+                        handler = Handler()
+                        handler!!.postDelayed(r, 1500)
+
+
+                    } catch (e: Exception) {
+                        Log.d("DEBUG", e.message.toString())
+                    }
+
+                }, { t ->
+                    Toast.makeText(this@ShippingActivity, t.message.toString(), Toast.LENGTH_SHORT)
+                        .show()
+                })
+        )
     }
 
     private fun buildLocationRequest() {
@@ -209,8 +433,12 @@ class ShippingActivity : AppCompatActivity(), OnMapReadyCallback {
         mMap = googleMap
         mMap.uiSettings.isZoomControlsEnabled = true
         try {
-            val success = googleMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(this,
-                    R.raw.uber_light_with_label))
+            val success = googleMap.setMapStyle(
+                MapStyleOptions.loadRawResourceStyle(
+                    this,
+                    R.raw.uber_light_with_label
+                )
+            )
             if (!success)
                 Log.d("PHAMTHUC", "Failed to load map style")
         } catch (ex: Resources.NotFoundException) {
@@ -224,6 +452,7 @@ class ShippingActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     override fun onDestroy() {
+        compositeDisposable.clear()
         fusedLocationProviderClient.removeLocationUpdates(locationCallback)
         super.onDestroy()
     }
