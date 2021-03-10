@@ -22,10 +22,11 @@ class MyShipperOrderAdapter(
         var context: Context,
         var shipperOrderList: List<ShipperOrderModel>
 ): RecyclerView.Adapter<MyShipperOrderAdapter.MyViewHolder>() {
-    val simpleDateFormat = SimpleDateFormat("dd-MM-yyyy HH:mm:ss")
+    private val simpleDateFormat: SimpleDateFormat
 
     init {
         Paper.init(context)
+        simpleDateFormat = SimpleDateFormat("dd-MM-yyyy HH:mm:ss")
     }
     lateinit var binding: LayoutShipperOrderBinding
 
@@ -42,10 +43,11 @@ class MyShipperOrderAdapter(
         with(holder){
             val shipperOrder = shipperOrderList[position]
             Glide.with(context).load(shipperOrder.orderModel!!.cartItemList!![0].foodImage).into(binding.imgFood)
-            binding.txtDate.setText(StringBuilder(simpleDateFormat.format(shipperOrder.orderModel.createdDate)))
+            binding.txtDate.text = StringBuilder(simpleDateFormat.format(shipperOrder.orderModel.createDate))
             Common.setSpanStringColor("Order No.:", shipperOrder.orderModel.key!!, binding.txtOrderNumber, Color.parseColor("#BA454A"))
             Common.setSpanStringColor("Address:", shipperOrder.orderModel.shippingAddress!!, binding.txtOrderAddress, Color.parseColor("#BA454A"))
             Common.setSpanStringColor("Payment:", shipperOrder.orderModel.transactionId!!, binding.txtOrderPayment, Color.parseColor("#BA454A"))
+
 
             //Disable button if already start trip
             //Event

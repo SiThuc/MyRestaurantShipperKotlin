@@ -2,7 +2,7 @@ package com.example.myrestaurantshipperv2model
 
 import com.example.myrestaurantshipperv2kotlin.model.CartItem
 
-class OrderModel() {
+class OrderModel {
     var userId: String? = null
     var userName: String? = null
     var userPhone: String? = null
@@ -15,7 +15,7 @@ class OrderModel() {
     var finalPayment: Double = 0.0
     var cod = false
     var discount = 0
-    var createdDate: Long = 0
+    var createDate: Long = 0
     var orderNumber: String? = null
     var orderStatus = 0
     var cartItemList: List<CartItem>? = null
