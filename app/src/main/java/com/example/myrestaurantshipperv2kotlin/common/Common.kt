@@ -159,6 +159,7 @@ object Common {
         return poly
     }
 
+    val TRIP_START: String? = "Trip"
     val SHIPPING_DATA: String = "ShippingData"
     val NOTI_CONTENT: String = "Content"
     val NOTI_TITLE: String = "Title"
